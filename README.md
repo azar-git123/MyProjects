@@ -12,7 +12,7 @@ This standalone spring boot project contains REST apis for car parking system
 
 ### Prerequisites
 - Java 17 or higher
-- Maven 3.3.2
+- Maven 3.9.9
 - Spring boot 3.4.3
 
 ### Installation
