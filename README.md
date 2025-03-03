@@ -23,7 +23,7 @@ This standalone spring boot project contains REST apis for car parking system
 ### Run instructions
 1. Open a gitbash terminal and Ensure you're in the root directory of your Spring Boot project.
 
-2. Build the project (if you haven't already) using below command
+2. Install maven and then Build the project (if you haven't already) using below command
    ```bash 
    mvn clean install
 
