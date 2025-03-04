@@ -1,4 +1,4 @@
-# Parking system
+# Parking System
 
 ## Overview
 This standalone spring boot project contains REST apis for car parking system
