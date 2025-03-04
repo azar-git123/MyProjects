@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -46,7 +47,7 @@ public class LicensePlateObservationServiceTest {
     @Test
     public void testIdentifyUnregisteredPlates() {
     	
-    	LocalDateTime currentTime = LocalDateTime.now(ZoneId.of("Europe/Amsterdam"));
+    	LocalDateTime currentTime = LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES);
     	List<LicensePlateObservation> observations = new ArrayList<>();
     	LicensePlateObservation licensePlateObservation = new LicensePlateObservation();
     	licensePlateObservation.setLicensePlate("TN5678");
@@ -57,8 +58,8 @@ public class LicensePlateObservationServiceTest {
         ParkingSession session = new ParkingSession();
         session.setLicensePlate("TN5678");
         session.setStreetName("Jakarta");
-        session.setStartTime(currentTime.minusSeconds(420));
-        session.setEndTime(currentTime.minusSeconds(300));
+        session.setStartTime(currentTime.minusMinutes(7));
+        session.setEndTime(currentTime.minusMinutes(5));
         session.setActive(false);
     	
         Optional<ParkingSession> optionalSession = Optional.of(session);
@@ -76,7 +77,7 @@ public class LicensePlateObservationServiceTest {
     	LicensePlateObservation licensePlateObservation = new LicensePlateObservation();
     	licensePlateObservation.setLicensePlate("TN1234");
     	licensePlateObservation.setStreetName("Java");
-    	licensePlateObservation.setObservationTime(LocalDateTime.now());
+    	licensePlateObservation.setObservationTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES));
     	observations.add(licensePlateObservation);
 
         service.uploadObservations(observations);

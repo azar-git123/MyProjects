@@ -16,6 +16,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +46,7 @@ public class ParkingSessionServiceTest {
         ParkingSession session = new ParkingSession();
         session.setLicensePlate("ABC123");
         session.setStreetName("Java");
-        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")));
+        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES));
         
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
@@ -64,7 +65,7 @@ public class ParkingSessionServiceTest {
     	ParkingSession session = new ParkingSession();
         session.setLicensePlate("TN1234");
         session.setStreetName("Jakarta");
-        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")));
+        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES));
 
         Exception exception = assertThrows(RuntimeException.class, () -> {
         	service.startSession("TN1234", "Jakarta");
@@ -81,7 +82,7 @@ public class ParkingSessionServiceTest {
         ParkingSession session = new ParkingSession();
         session.setLicensePlate("ABC123");
         session.setStreetName("Java");
-        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).minusSeconds(50));
+        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES).minusMinutes(3));
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
@@ -93,7 +94,28 @@ public class ParkingSessionServiceTest {
         assertNotNull(result);
         assertEquals("ABC123", result.getLicensePlate());
         assertNotNull(result.getEndTime());
-        assertEquals(15, result.getCost());
+        assertEquals(0.45, result.getCost());
+    }
+    
+    @Test
+    public void testEndSessionAfterSunday() {
+        ParkingSession session = spy(new ParkingSession());
+        session.setLicensePlate("ABC123");
+        session.setStreetName("Java");
+        session.setStartTime(LocalDateTime.of(2025, 3, 1, 20, 0));//1st march 2025 8 P.M - Saturday
+
+        Map<String, Integer> pricing = new HashMap<>();
+        pricing.put("Java", 15);
+        when(parkingSessionRepository.findByLicensePlateAndEndTimeIsNull("ABC123")).thenReturn(Collections.singletonList(session));
+        when(parkingSessionRepository.save(any(ParkingSession.class))).thenReturn(session);
+        when(streetParkingPricingConfig.getValues()).thenReturn(pricing);
+        when(session.getEndTime()).thenReturn(LocalDateTime.of(2025, 3, 3, 10, 0));//3rd March 2025 10 A.M - Monday
+
+        ParkingSession result = service.endSession("ABC123");
+        assertNotNull(result);
+        assertEquals("ABC123", result.getLicensePlate());
+        assertNotNull(result.getEndTime());
+        assertEquals(2700/100, result.getCost());
     }
 
     @Test
@@ -115,7 +137,7 @@ public class ParkingSessionServiceTest {
         ParkingSession session = new ParkingSession();
         session.setLicensePlate("ABC123");
         session.setStreetName("Java");
-        session.setStartTime(LocalDateTime.now());
+        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES));
 
         when(parkingSessionRepository.findByLicensePlateAndEndTimeIsNull("ABC123")).thenReturn(Collections.singletonList(session));
 

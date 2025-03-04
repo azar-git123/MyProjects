@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -47,7 +48,7 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
         if(!getStreetConfig(streetName).isEmpty()) {
             session.setStreetName(streetName);
         }
-        session.setStartTime(LocalDateTime.now(ZoneId.of(timezone)));
+        session.setStartTime(LocalDateTime.now(ZoneId.of(timezone)).truncatedTo(ChronoUnit.MINUTES));
         session.setActive(true);
        	logger.info("Parking session object with current time : {}", session);
         return parkingSessionRepository.save(session);
@@ -68,17 +69,11 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
         }
         ParkingSession session = sessions.get(0);
         session.setActive(false);
-        session.setEndTime(LocalDateTime.now(ZoneId.of(timezone)));
+        session.setEndTime(LocalDateTime.now(ZoneId.of(timezone)).truncatedTo(ChronoUnit.MINUTES));
         logger.info("Parking session for license plate number: {}, is found : {}", session.getLicensePlate(), session);
 
         // Calculate the cost of parking
-        Map<String, Integer> map = getStreetConfig(session.getStreetName());
-        double pricePerMinute = map.get(session.getStreetName());
-        double secondsParked = ChronoUnit.SECONDS.between(session.getStartTime(), session.getEndTime());
-        logger.info("secondsParked is : {}", secondsParked);
-        double minutesParked = Math.ceil(secondsParked/60.0);
-        logger.info("minutesParked is : {}", minutesParked);
-        double cost = minutesParked * pricePerMinute;
+        double cost = calculateCost(session);
         logger.info("Ending parking session with cost for license number {} is {}", session.getLicensePlate(), cost);
         session.setCost(cost);
 
@@ -98,5 +93,38 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
         	throw new RuntimeException("No street found for street name: " + streetName);
         }
         return map;
+    }
+    
+    /*
+     * Returns the cost for a parking session
+     * @param session - parking session object @see ParkingSession
+     * @return the cost
+     */
+    private double calculateCost(ParkingSession session) {
+        LocalDateTime start = session.getStartTime();
+        LocalDateTime end = session.getEndTime();
+        Map<String, Integer> map = getStreetConfig(session.getStreetName());
+        double pricePerMinute = map.get(session.getStreetName());
+
+        double totalMinutes = 0;
+        while (start.isBefore(end)) {
+            if (isChargeable(start)) {
+                totalMinutes++;
+            }
+            start = start.plusMinutes(1);
+        }
+        logger.info("Price per minutes are : {}", pricePerMinute);
+        logger.info("Total chargeable minutes are : {}", totalMinutes);
+        return totalMinutes * pricePerMinute /100.0;
+    }
+    
+    /*
+     * Validates whether the time is chargeable or not.No charge for Sunday and between 9PM and 8AM on other days
+     * @param time - any time
+     * @return true or false
+     */
+    private boolean isChargeable(LocalDateTime time) {
+    	LocalTime localTime = time.toLocalTime();
+        return !(localTime.isAfter(LocalTime.of(20, 59)) || localTime.isBefore(LocalTime.of(8, 0)) || time.getDayOfWeek().getValue() == 7);
     }
 }
