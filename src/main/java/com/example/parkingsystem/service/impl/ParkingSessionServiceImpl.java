@@ -113,7 +113,7 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
             }
             start = start.plusMinutes(1);
         }
-        logger.info("Price per minutes are : {}", pricePerMinute);
+        logger.info("Price per minute is : {}", pricePerMinute);
         logger.info("Total chargeable minutes are : {}", totalMinutes);
         return totalMinutes * pricePerMinute /100.0;
     }
