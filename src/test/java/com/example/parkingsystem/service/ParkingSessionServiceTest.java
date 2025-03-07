@@ -92,7 +92,7 @@ public class ParkingSessionServiceTest {
         
 
         ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
-        ReflectionTestUtils.setField(service, "freeParkingEndTime", "8:00");
+        ReflectionTestUtils.setField(service, "freeParkingEndTime", "08:00");
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
@@ -115,7 +115,7 @@ public class ParkingSessionServiceTest {
         session.setStartTime(LocalDateTime.of(2025, 3, 1, 20, 0));//1st march 2025 8 P.M - Saturday
         
         ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
-        ReflectionTestUtils.setField(service, "freeParkingEndTime", "8:00");
+        ReflectionTestUtils.setField(service, "freeParkingEndTime", "08:00");
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
@@ -139,7 +139,7 @@ public class ParkingSessionServiceTest {
         session.setStartTime(LocalDateTime.of(2025, 3, 1, 20, 0));//1st march 2025 8 P.M - Saturday
         
         ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
-        ReflectionTestUtils.setField(service, "freeParkingEndTime", "8:00");
+        ReflectionTestUtils.setField(service, "freeParkingEndTime", "08:00");
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
@@ -154,6 +154,32 @@ public class ParkingSessionServiceTest {
         assertEquals("ABC123", result.getLicensePlate());
         assertNotNull(result.getEndTime());
         assertEquals(27, result.getCost());
+    }
+    
+    @Test
+    public void testEndSessionInvalidateFreeParkingTime() {
+        ParkingSession session = new ParkingSession();
+        session.setLicensePlate("ABC123");
+        session.setStreetName("Java");
+        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES).minusMinutes(3));
+        
+
+        ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
+        ReflectionTestUtils.setField(service, "freeParkingEndTime", "8:00");
+
+        Map<String, Integer> pricing = new HashMap<>();
+        pricing.put("Java", 15);
+        when(parkingSessionRepository.findByLicensePlateAndEndTimeIsNull("ABC123")).thenReturn(Collections.singletonList(session));
+        when(streetParkingPricingConfig.getValues()).thenReturn(pricing);
+
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+        	service.endSession("ABC123");
+        });
+
+        String expectedMessage = "Invalid free parking start/end time configured";
+        String actualMessage = exception.getMessage();
+
+        assertTrue(actualMessage.contains(expectedMessage));
     }
 
     @Test

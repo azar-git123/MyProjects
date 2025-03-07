@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -136,13 +137,24 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
      */
     private boolean isChargeable(LocalDateTime time) {
     	List<LocalDate> holidays = holidayConfig.getHolidays();
+    	int freeParkingStartHrs, freeParkingStartMins, freeParkingEndHrs, freeParkingEndMins = 0;
     	logger.info("Holidays List : {}", holidays);
-    	String[] freeParkingStartTimings = freeParkingStartTime.split(":");
-    	int freeParkingStartHrs = Integer.parseInt(freeParkingStartTimings[0]);
-    	int freeParkingStartMins = Integer.parseInt(freeParkingStartTimings[1]);
-    	String[] freeParkingEndTimings = freeParkingEndTime.split(":");
-    	int freeParkingEndHrs = Integer.parseInt(freeParkingEndTimings[0]);
-    	int freeParkingEndMins = Integer.parseInt(freeParkingEndTimings[1]);
+    	try {
+	    	LocalTime freeParkingStart = LocalTime.parse(freeParkingStartTime);
+	    	LocalTime freeParkingEnd = LocalTime.parse(freeParkingEndTime);
+	    	
+	    	freeParkingStartHrs = freeParkingStart.getHour();
+	    	freeParkingStartMins = freeParkingStart.getMinute();
+	    	logger.info("Free parking start time is : {}:{}", freeParkingStartHrs, freeParkingStartMins);
+	
+	    	freeParkingEndHrs = freeParkingEnd.getHour();
+	    	freeParkingEndMins = freeParkingEnd.getMinute();
+	    	logger.info("Free parking end time is : {}:{}", freeParkingEndHrs, freeParkingEndMins);
+    	} catch (DateTimeParseException e) {
+    		logger.error("Invalid free parking start/end time configured: start time : {}, end time : {}", freeParkingStartTime, freeParkingEndTime);
+        	throw new RuntimeException("Invalid free parking start/end time configured");
+    	}
+    	
     	LocalTime localTime = time.toLocalTime();
         return !(localTime.isAfter(LocalTime.of(freeParkingStartHrs, freeParkingStartMins)) || localTime.isBefore(LocalTime.of(freeParkingEndHrs, freeParkingEndMins)) || time.getDayOfWeek().getValue() == 7 || holidays.contains(time.toLocalDate()));
     }
