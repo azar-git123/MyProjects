@@ -1,5 +1,6 @@
 package com.example.parkingsystem.service.impl;
 
+import com.example.parkingsystem.config.FreeParkingTimingConfig;
 import com.example.parkingsystem.config.HolidayConfig;
 import com.example.parkingsystem.config.StreetParkingPricing;
 import com.example.parkingsystem.entity.ParkingSession;
@@ -15,7 +16,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -31,19 +31,16 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
 
     private HolidayConfig holidayConfig;
     
+    private FreeParkingTimingConfig freeParkingTimingConfig;
+    
     @Value("${parkingsystem.timezone}")
     private String timezone;
     
-    @Value("${parkingsystem.freeparking.starttime}")
-    private String freeParkingStartTime;
-
-    @Value("${parkingsystem.freeparking.endtime}")
-    private String freeParkingEndTime;
-    
-    public ParkingSessionServiceImpl(ParkingSessionRepository parkingSessionRepository, StreetParkingPricing streetParkingPricingConfig, HolidayConfig holidayConfig) {
+    public ParkingSessionServiceImpl(ParkingSessionRepository parkingSessionRepository, StreetParkingPricing streetParkingPricingConfig, HolidayConfig holidayConfig, FreeParkingTimingConfig freeParkingTimingConfig) {
     	this.parkingSessionRepository = parkingSessionRepository;
         this.streetParkingPricingConfig = streetParkingPricingConfig;
         this.holidayConfig = holidayConfig;
+        this.freeParkingTimingConfig = freeParkingTimingConfig;
         
     }
 
@@ -119,25 +116,14 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
         Map<String, Integer> map = getStreetConfig(session.getStreetName());
         double pricePerMinute = map.get(session.getStreetName());
         
-        List<LocalDate> holidays = holidayConfig.getHolidays();
-    	int freeParkingStartHrs, freeParkingStartMins, freeParkingEndHrs, freeParkingEndMins = 0;
+        List<LocalDate> holidays = holidayConfig.getHolidayList();
     	logger.info("Holidays List : {}", holidays);
-    	try {
-	    	LocalTime freeParkingStart = LocalTime.parse(freeParkingStartTime);
-	    	LocalTime freeParkingEnd = LocalTime.parse(freeParkingEndTime);
-	    	
-	    	freeParkingStartHrs = freeParkingStart.getHour();
-	    	freeParkingStartMins = freeParkingStart.getMinute();
-	    	logger.info("Free parking start time is : {}:{}", freeParkingStartHrs, freeParkingStartMins);
-	
-	    	freeParkingEndHrs = freeParkingEnd.getHour();
-	    	freeParkingEndMins = freeParkingEnd.getMinute();
-	    	logger.info("Free parking end time is : {}:{}", freeParkingEndHrs, freeParkingEndMins);
-    	} catch (DateTimeParseException e) {
-    		logger.error("Invalid free parking start/end time configured: start time : {}, end time : {}", freeParkingStartTime, freeParkingEndTime);
-        	throw new RuntimeException("Invalid free parking start/end time configured");
-    	}
-
+    	
+    	int freeParkingStartHrs = freeParkingTimingConfig.getFreeParkingStartHrs();
+    	int freeParkingStartMins =  freeParkingTimingConfig.getFreeParkingStartMins();
+    	int freeParkingEndHrs = freeParkingTimingConfig.getFreeParkingEndHrs();
+    	int freeParkingEndMins = freeParkingTimingConfig.getFreeParkingEndMins();
+    	
         double totalMinutes = 0;
         while (start.isBefore(end)) {
             if (isChargeable(start, freeParkingStartHrs, freeParkingStartMins, freeParkingEndHrs, freeParkingEndMins, holidays)) {

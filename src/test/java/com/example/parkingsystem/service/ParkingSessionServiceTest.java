@@ -1,5 +1,6 @@
 package com.example.parkingsystem.service;
 
+import com.example.parkingsystem.config.FreeParkingTimingConfig;
 import com.example.parkingsystem.config.HolidayConfig;
 import com.example.parkingsystem.config.StreetParkingPricing;
 import com.example.parkingsystem.entity.ParkingSession;
@@ -37,6 +38,9 @@ public class ParkingSessionServiceTest {
     
     @Mock
     private HolidayConfig holidayConfig;
+    
+    @Mock
+    private FreeParkingTimingConfig freeParkingTimingConfig;
 
     @InjectMocks
     private ParkingSessionServiceImpl service;
@@ -89,16 +93,16 @@ public class ParkingSessionServiceTest {
         session.setLicensePlate("ABC123");
         session.setStreetName("Java");
         session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES).minusMinutes(3));
-        
-
-        ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
-        ReflectionTestUtils.setField(service, "freeParkingEndTime", "08:00");
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
         when(parkingSessionRepository.findByLicensePlateAndEndTimeIsNull("ABC123")).thenReturn(Collections.singletonList(session));
         when(parkingSessionRepository.save(any(ParkingSession.class))).thenReturn(session);
         when(streetParkingPricingConfig.getValues()).thenReturn(pricing);
+        when(freeParkingTimingConfig.getFreeParkingStartHrs()).thenReturn(20);
+        when(freeParkingTimingConfig.getFreeParkingStartMins()).thenReturn(59);
+        when(freeParkingTimingConfig.getFreeParkingEndHrs()).thenReturn(8);
+        when(freeParkingTimingConfig.getFreeParkingEndMins()).thenReturn(00);
 
         ParkingSession result = service.endSession("ABC123");
         assertNotNull(result);
@@ -113,15 +117,16 @@ public class ParkingSessionServiceTest {
         session.setLicensePlate("ABC123");
         session.setStreetName("Java");
         session.setStartTime(LocalDateTime.of(2025, 3, 1, 20, 0));//1st march 2025 8 P.M - Saturday
-        
-        ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
-        ReflectionTestUtils.setField(service, "freeParkingEndTime", "08:00");
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
         when(parkingSessionRepository.findByLicensePlateAndEndTimeIsNull("ABC123")).thenReturn(Collections.singletonList(session));
         when(parkingSessionRepository.save(any(ParkingSession.class))).thenReturn(session);
         when(streetParkingPricingConfig.getValues()).thenReturn(pricing);
+        when(freeParkingTimingConfig.getFreeParkingStartHrs()).thenReturn(20);
+        when(freeParkingTimingConfig.getFreeParkingStartMins()).thenReturn(59);
+        when(freeParkingTimingConfig.getFreeParkingEndHrs()).thenReturn(8);
+        when(freeParkingTimingConfig.getFreeParkingEndMins()).thenReturn(00);
         when(session.getEndTime()).thenReturn(LocalDateTime.of(2025, 3, 3, 10, 0));//3rd March 2025 10 A.M - Monday
 
         ParkingSession result = service.endSession("ABC123");
@@ -137,49 +142,24 @@ public class ParkingSessionServiceTest {
         session.setLicensePlate("ABC123");
         session.setStreetName("Java");
         session.setStartTime(LocalDateTime.of(2025, 3, 1, 20, 0));//1st march 2025 8 P.M - Saturday
-        
-        ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
-        ReflectionTestUtils.setField(service, "freeParkingEndTime", "08:00");
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
         when(parkingSessionRepository.findByLicensePlateAndEndTimeIsNull("ABC123")).thenReturn(Collections.singletonList(session));
         when(parkingSessionRepository.save(any(ParkingSession.class))).thenReturn(session);
         when(streetParkingPricingConfig.getValues()).thenReturn(pricing);
-        when(holidayConfig.getHolidays()).thenReturn(List.of(LocalDate.of(2025, 3, 3)));
-        when(session.getEndTime()).thenReturn(LocalDateTime.of(2025, 3, 4, 10, 0));//4th March 2025 10 A.M - Monday
+        when(holidayConfig.getHolidayList()).thenReturn(List.of(LocalDate.of(2025, 3, 3)));
+        when(freeParkingTimingConfig.getFreeParkingStartHrs()).thenReturn(20);
+        when(freeParkingTimingConfig.getFreeParkingStartMins()).thenReturn(59);
+        when(freeParkingTimingConfig.getFreeParkingEndHrs()).thenReturn(8);
+        when(freeParkingTimingConfig.getFreeParkingEndMins()).thenReturn(00);
+        when(session.getEndTime()).thenReturn(LocalDateTime.of(2025, 3, 4, 10, 0));//4th March 2025 10 A.M - Tuesday
 
         ParkingSession result = service.endSession("ABC123");
         assertNotNull(result);
         assertEquals("ABC123", result.getLicensePlate());
         assertNotNull(result.getEndTime());
         assertEquals(27, result.getCost());
-    }
-    
-    @Test
-    public void testEndSessionInvalidateFreeParkingTime() {
-        ParkingSession session = new ParkingSession();
-        session.setLicensePlate("ABC123");
-        session.setStreetName("Java");
-        session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES).minusMinutes(3));
-        
-
-        ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
-        ReflectionTestUtils.setField(service, "freeParkingEndTime", "8:00");
-
-        Map<String, Integer> pricing = new HashMap<>();
-        pricing.put("Java", 15);
-        when(parkingSessionRepository.findByLicensePlateAndEndTimeIsNull("ABC123")).thenReturn(Collections.singletonList(session));
-        when(streetParkingPricingConfig.getValues()).thenReturn(pricing);
-
-        Exception exception = assertThrows(RuntimeException.class, () -> {
-        	service.endSession("ABC123");
-        });
-
-        String expectedMessage = "Invalid free parking start/end time configured";
-        String actualMessage = exception.getMessage();
-
-        assertTrue(actualMessage.contains(expectedMessage));
     }
 
     @Test
