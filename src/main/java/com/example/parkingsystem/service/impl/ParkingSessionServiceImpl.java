@@ -1,5 +1,6 @@
 package com.example.parkingsystem.service.impl;
 
+import com.example.parkingsystem.config.HolidayConfig;
 import com.example.parkingsystem.config.StreetParkingPricing;
 import com.example.parkingsystem.entity.ParkingSession;
 import com.example.parkingsystem.repository.ParkingSessionRepository;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -25,13 +27,22 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
     private ParkingSessionRepository parkingSessionRepository;
 
     private StreetParkingPricing streetParkingPricingConfig;
+
+    private HolidayConfig holidayConfig;
     
     @Value("${parkingsystem.timezone}")
     private String timezone;
+    
+    @Value("${parkingsystem.freeparking.starttime}")
+    private String freeParkingStartTime;
 
-    public ParkingSessionServiceImpl(ParkingSessionRepository parkingSessionRepository, StreetParkingPricing streetParkingPricingConfig) {
+    @Value("${parkingsystem.freeparking.endtime}")
+    private String freeParkingEndTime;
+    
+    public ParkingSessionServiceImpl(ParkingSessionRepository parkingSessionRepository, StreetParkingPricing streetParkingPricingConfig, HolidayConfig holidayConfig) {
     	this.parkingSessionRepository = parkingSessionRepository;
         this.streetParkingPricingConfig = streetParkingPricingConfig;
+        this.holidayConfig = holidayConfig;
     }
 
     /*
@@ -119,12 +130,20 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
     }
     
     /*
-     * Validates whether the time is chargeable or not.No charge for Sunday and between 9PM and 8AM on other days
+     * Validates whether the time is chargeable or not.No charge for Sunday and any holidays and between 9PM and 8AM on other days
      * @param time - any time
      * @return true or false
      */
     private boolean isChargeable(LocalDateTime time) {
+    	List<LocalDate> holidays = holidayConfig.getHolidays();
+    	logger.info("Holidays List : {}", holidays);
+    	String[] freeParkingStartTimings = freeParkingStartTime.split(":");
+    	int freeParkingStartHrs = Integer.parseInt(freeParkingStartTimings[0]);
+    	int freeParkingStartMins = Integer.parseInt(freeParkingStartTimings[1]);
+    	String[] freeParkingEndTimings = freeParkingEndTime.split(":");
+    	int freeParkingEndHrs = Integer.parseInt(freeParkingEndTimings[0]);
+    	int freeParkingEndMins = Integer.parseInt(freeParkingEndTimings[1]);
     	LocalTime localTime = time.toLocalTime();
-        return !(localTime.isAfter(LocalTime.of(20, 59)) || localTime.isBefore(LocalTime.of(8, 0)) || time.getDayOfWeek().getValue() == 7);
+        return !(localTime.isAfter(LocalTime.of(freeParkingStartHrs, freeParkingStartMins)) || localTime.isBefore(LocalTime.of(freeParkingEndHrs, freeParkingEndMins)) || time.getDayOfWeek().getValue() == 7 || holidays.contains(time.toLocalDate()));
     }
 }

@@ -1,5 +1,6 @@
 package com.example.parkingsystem.service;
 
+import com.example.parkingsystem.config.HolidayConfig;
 import com.example.parkingsystem.config.StreetParkingPricing;
 import com.example.parkingsystem.entity.ParkingSession;
 import com.example.parkingsystem.repository.ParkingSessionRepository;
@@ -14,11 +15,13 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,6 +34,9 @@ public class ParkingSessionServiceTest {
     
     @Mock
     private StreetParkingPricing streetParkingPricingConfig;
+    
+    @Mock
+    private HolidayConfig holidayConfig;
 
     @InjectMocks
     private ParkingSessionServiceImpl service;
@@ -83,6 +89,10 @@ public class ParkingSessionServiceTest {
         session.setLicensePlate("ABC123");
         session.setStreetName("Java");
         session.setStartTime(LocalDateTime.now(ZoneId.of("Europe/Amsterdam")).truncatedTo(ChronoUnit.MINUTES).minusMinutes(3));
+        
+
+        ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
+        ReflectionTestUtils.setField(service, "freeParkingEndTime", "8:00");
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
@@ -103,6 +113,9 @@ public class ParkingSessionServiceTest {
         session.setLicensePlate("ABC123");
         session.setStreetName("Java");
         session.setStartTime(LocalDateTime.of(2025, 3, 1, 20, 0));//1st march 2025 8 P.M - Saturday
+        
+        ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
+        ReflectionTestUtils.setField(service, "freeParkingEndTime", "8:00");
 
         Map<String, Integer> pricing = new HashMap<>();
         pricing.put("Java", 15);
@@ -115,7 +128,32 @@ public class ParkingSessionServiceTest {
         assertNotNull(result);
         assertEquals("ABC123", result.getLicensePlate());
         assertNotNull(result.getEndTime());
-        assertEquals(2700/100, result.getCost());
+        assertEquals(27, result.getCost());
+    }
+    
+    @Test
+    public void testEndSessionAfterHoliday() {
+        ParkingSession session = spy(new ParkingSession());
+        session.setLicensePlate("ABC123");
+        session.setStreetName("Java");
+        session.setStartTime(LocalDateTime.of(2025, 3, 1, 20, 0));//1st march 2025 8 P.M - Saturday
+        
+        ReflectionTestUtils.setField(service, "freeParkingStartTime", "20:59");
+        ReflectionTestUtils.setField(service, "freeParkingEndTime", "8:00");
+
+        Map<String, Integer> pricing = new HashMap<>();
+        pricing.put("Java", 15);
+        when(parkingSessionRepository.findByLicensePlateAndEndTimeIsNull("ABC123")).thenReturn(Collections.singletonList(session));
+        when(parkingSessionRepository.save(any(ParkingSession.class))).thenReturn(session);
+        when(streetParkingPricingConfig.getValues()).thenReturn(pricing);
+        when(holidayConfig.getHolidays()).thenReturn(List.of(LocalDate.of(2025, 3, 3)));
+        when(session.getEndTime()).thenReturn(LocalDateTime.of(2025, 3, 4, 10, 0));//4th March 2025 10 A.M - Monday
+
+        ParkingSession result = service.endSession("ABC123");
+        assertNotNull(result);
+        assertEquals("ABC123", result.getLicensePlate());
+        assertNotNull(result.getEndTime());
+        assertEquals(27, result.getCost());
     }
 
     @Test
