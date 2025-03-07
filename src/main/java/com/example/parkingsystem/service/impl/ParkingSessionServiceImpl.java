@@ -44,6 +44,7 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
     	this.parkingSessionRepository = parkingSessionRepository;
         this.streetParkingPricingConfig = streetParkingPricingConfig;
         this.holidayConfig = holidayConfig;
+        
     }
 
     /*
@@ -117,26 +118,8 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
         LocalDateTime end = session.getEndTime();
         Map<String, Integer> map = getStreetConfig(session.getStreetName());
         double pricePerMinute = map.get(session.getStreetName());
-
-        double totalMinutes = 0;
-        while (start.isBefore(end)) {
-            if (isChargeable(start)) {
-                totalMinutes++;
-            }
-            start = start.plusMinutes(1);
-        }
-        logger.info("Price per minute is : {}", pricePerMinute);
-        logger.info("Total chargeable minutes are : {}", totalMinutes);
-        return totalMinutes * pricePerMinute /100.0;
-    }
-    
-    /*
-     * Validates whether the time is chargeable or not.No charge for Sunday and any holidays and between 9PM and 8AM on other days
-     * @param time - any time
-     * @return true or false
-     */
-    private boolean isChargeable(LocalDateTime time) {
-    	List<LocalDate> holidays = holidayConfig.getHolidays();
+        
+        List<LocalDate> holidays = holidayConfig.getHolidays();
     	int freeParkingStartHrs, freeParkingStartMins, freeParkingEndHrs, freeParkingEndMins = 0;
     	logger.info("Holidays List : {}", holidays);
     	try {
@@ -154,7 +137,25 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
     		logger.error("Invalid free parking start/end time configured: start time : {}, end time : {}", freeParkingStartTime, freeParkingEndTime);
         	throw new RuntimeException("Invalid free parking start/end time configured");
     	}
-    	
+
+        double totalMinutes = 0;
+        while (start.isBefore(end)) {
+            if (isChargeable(start, freeParkingStartHrs, freeParkingStartMins, freeParkingEndHrs, freeParkingEndMins, holidays)) {
+                totalMinutes++;
+            }
+            start = start.plusMinutes(1);
+        }
+        logger.info("Price per minute is : {}", pricePerMinute);
+        logger.info("Total chargeable minutes are : {}", totalMinutes);
+        return totalMinutes * pricePerMinute /100.0;
+    }
+    
+    /*
+     * Validates whether the time is chargeable or not.No charge for Sunday and any holidays and between 9PM and 8AM on other days
+     * @param time - any time
+     * @return true or false
+     */
+    private boolean isChargeable(LocalDateTime time, int freeParkingStartHrs, int freeParkingStartMins, int freeParkingEndHrs, int freeParkingEndMins, List<LocalDate> holidays) {
     	LocalTime localTime = time.toLocalTime();
         return !(localTime.isAfter(LocalTime.of(freeParkingStartHrs, freeParkingStartMins)) || localTime.isBefore(LocalTime.of(freeParkingEndHrs, freeParkingEndMins)) || time.getDayOfWeek().getValue() == 7 || holidays.contains(time.toLocalDate()));
     }
